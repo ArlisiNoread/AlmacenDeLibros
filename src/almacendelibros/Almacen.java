@@ -1,13 +1,22 @@
 package almacendelibros;
 
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Scanner;
+
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 public class Almacen {
 
@@ -23,7 +32,9 @@ public class Almacen {
 
     public void activarServidor() {
         this.manejoDeLibros.inicializarYChecarArchivo();
-        //new Servidor(this.puerto);
+        //this.manejoDeLibros.agregarLibrosDeEjemplo();
+        //this.manejoDeLibros.escribirEnArchivo();
+        new Servidor(this.puerto, this.libros).start();
     }
 
 }
@@ -48,24 +59,95 @@ class ManejoDeLibros {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        leerDeArchivo();
+
     }
-    
-    public void agregarLibro(Libro libro){
+
+    public void agregarLibro(Libro libro) {
         this.libros.add(libro);
-        
+        this.escribirEnArchivo();
     }
-    
-    private void escribirEnArchivo(){
-        
+
+    public void agregarLibrosDeEjemplo() {
+        this.libros.add(new Libro("Harry", "Potta", "Magia", "Patata", 58.5));
+        this.libros.add(new Libro("Harry3", "Potta2", "Magia1", "Patata1", 56.5));
+        this.libros.add(new Libro("Harr223y3", "Potsdta2", "Magdfia1", "Patsdfata1", 526.5));
+
+    }
+
+    public void imprimirLibros() {
+        System.out.println("Imprimiendo libros:");
+        this.libros.forEach((l) -> System.out.println(l));
+    }
+
+    public void leerDeArchivo() {
+        String cadenaJson = "";
+        try {
+            File myObj = new File("listaDeLibros.txt");
+            Scanner myReader = new Scanner(myObj);
+            while (myReader.hasNextLine()) {
+                String data = myReader.nextLine();
+                cadenaJson += data;
+            }
+            myReader.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        JSONParser parser = new JSONParser();
+        JSONObject json = null;
+        try {
+            json = (JSONObject) parser.parse(cadenaJson);
+        } catch (ParseException ex) {
+            ex.printStackTrace();
+        }
+
+        JSONArray jArray = (JSONArray) json.get("libros");
+
+        for (int x = 0; x < jArray.size(); x++) {
+            JSONObject subObj = new JSONObject();
+            subObj = (JSONObject) jArray.get(x);
+            this.libros.add(new Libro((String) subObj.get("nombre"), (String) subObj.get("autor"), (String) subObj.get("tipo"), (String) subObj.get("descripcion"), (double) subObj.get("precio")));
+        }
+
+    }
+
+    public void escribirEnArchivo() {
+        JSONObject obj = new JSONObject();
+        JSONArray list = new JSONArray();
+
+        for (int x = 0; x < libros.size(); x++) {
+            JSONObject subObj = new JSONObject();
+            subObj.put("nombre", libros.get(x).nombre);
+            subObj.put("autor", libros.get(x).autor);
+            subObj.put("tipo", libros.get(x).tipo);
+            subObj.put("descripcion", libros.get(x).descripcion);
+            subObj.put("precio", libros.get(x).precio);
+            list.add(subObj);
+        }
+        obj.put("libros", list);
+
+        String cadenaJson = obj.toJSONString();
+        try {
+            FileWriter myWriter = new FileWriter("listaDeLibros.txt");
+            myWriter.write(cadenaJson);
+            myWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }
 
 class Servidor extends Thread {
 
     int puerto;
+    ArrayList<Libro> libros;
 
-    public Servidor(int puerto) {
+    public Servidor(int puerto, ArrayList<Libro> libros) {
         this.puerto = puerto;
+        this.libros = libros;
     }
 
     @Override
@@ -81,7 +163,7 @@ class Servidor extends Thread {
         while (true) {
             try {
                 Socket sPrivado = server.accept();
-                new ConexionPrivada(sPrivado).start();
+                new ConexionPrivada(sPrivado, this.libros).start();
 
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -93,18 +175,48 @@ class Servidor extends Thread {
 class ConexionPrivada extends Thread {
 
     protected Socket socket;
+    ArrayList<Libro> libros;
 
-    public ConexionPrivada(Socket socket) {
+    public ConexionPrivada(Socket socket, ArrayList<Libro> libros) {
         this.socket = socket;
+        this.libros = libros;
     }
 
     @Override
     public void run() {
+        InputStream slin;
         OutputStream s1out;
         try {
+            slin = this.socket.getInputStream();
+            DataInputStream dis = new DataInputStream(slin);
+            String st = new String(dis.readUTF());
+            //System.out.println(st);
+            String ret = "";
+            if (st.equals("1")) {
+                JSONObject obj = new JSONObject();
+                JSONArray list = new JSONArray();
+
+                for (int x = 0; x < libros.size(); x++) {
+                    JSONObject subObj = new JSONObject();
+                    subObj.put("nombre", libros.get(x).nombre);
+                    subObj.put("autor", libros.get(x).autor);
+                    subObj.put("tipo", libros.get(x).tipo);
+                    subObj.put("descripcion", libros.get(x).descripcion);
+                    subObj.put("precio", libros.get(x).precio);
+                    list.add(subObj);
+                }
+                obj.put("libros", list);
+
+                String cadenaJson = obj.toJSONString();
+                ret += cadenaJson;
+            }
+
             s1out = this.socket.getOutputStream();
             DataOutputStream dos = new DataOutputStream(s1out);
-            dos.writeUTF("");
+            dos.writeUTF(ret);
+
+            dis.close();
+            slin.close();
             dos.close();
             s1out.close();
             this.socket.close();
@@ -115,11 +227,4 @@ class ConexionPrivada extends Thread {
 
     }
 
-}
-
-class Libro {
-
-    JSONObject json;
-    String nombre, autor, tipo, descripcion;
-    double precio;
 }
