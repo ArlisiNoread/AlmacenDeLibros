@@ -148,6 +148,7 @@ class ManejoDeLibros {
         String cadenaJson = obj.toJSONString();
         try {
             FileWriter myWriter = new FileWriter("listaDeLibros.txt");
+            //System.out.println("Revisión de acentos " + cadenaJson);
             myWriter.write(cadenaJson);
             myWriter.close();
         } catch (IOException e) {
@@ -162,13 +163,18 @@ class Servidor extends Thread {
     int puerto;
     ArrayList<Libro> libros;
     ManejoDeLibros manejoDeLibros;
+    boolean bandera = true;
 
     public Servidor(int puerto, ArrayList<Libro> libros, ManejoDeLibros manejoDeLibros) {
         this.puerto = puerto;
         this.libros = libros;
         this.manejoDeLibros = manejoDeLibros;
     }
-
+    
+    public void apagarServidor(){
+        System.exit(0);
+    }
+    
     @Override
     public void run() {
         ServerSocket server = null;
@@ -179,10 +185,10 @@ class Servidor extends Thread {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        while (true) {
+        while (this.bandera) {
             try {
                 Socket sPrivado = server.accept();
-                new ConexionPrivada(sPrivado, this.libros, this.manejoDeLibros).start();
+                new ConexionPrivada(sPrivado, this.libros, this.manejoDeLibros, this).start();
 
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -196,11 +202,13 @@ class ConexionPrivada extends Thread {
     protected Socket socket;
     ArrayList<Libro> libros;
     ManejoDeLibros manejoDeLibros;
+    Servidor servidor;
 
-    public ConexionPrivada(Socket socket, ArrayList<Libro> libros, ManejoDeLibros manejoDeLibros) {
+    public ConexionPrivada(Socket socket, ArrayList<Libro> libros, ManejoDeLibros manejoDeLibros, Servidor servidor) {
         this.socket = socket;
         this.libros = libros;
         this.manejoDeLibros = manejoDeLibros;
+        this.servidor = servidor;
     }
 
     @Override
@@ -244,12 +252,15 @@ class ConexionPrivada extends Thread {
 
                 ret = "Libro Agregado";
 
+            } else if (st.equals("4")) {
+                ret = "Servidor Apagado";
+                servidor.apagarServidor();
             }
 
             s1out = this.socket.getOutputStream();
             DataOutputStream dos = new DataOutputStream(s1out);
             dos.writeUTF(ret);
-
+            
             dis.close();
             slin.close();
             dos.close();

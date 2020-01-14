@@ -4,7 +4,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -27,14 +29,19 @@ public class Principal {
     }
 
     public void menu() {
-        Scanner scan = new Scanner(System.in);
+        Scanner scan = null;
+        try {
+            scan = new Scanner(new InputStreamReader(System.in, "Cp1252"));
+        } catch (UnsupportedEncodingException ex) {
+            Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+        }
         boolean flagOut = false;
         String option;
         while (!flagOut) {
             System.out.println("Menú: Seleccione opción");
             System.out.println("1.- Ver Lista De Libros");
             System.out.println("2.- Guardar Libro");
-            System.out.println("3.- Borrar Libro");
+            System.out.println("3.- Borrar Libro (No implementado todavía)");
             System.out.println("4.- Salir");
 
             option = scan.nextLine().trim();
@@ -54,7 +61,6 @@ public class Principal {
                         DataInputStream dis = new DataInputStream(s1In);
 
                         String st = new String(dis.readUTF());
-                        //System.out.println(st);
 
                         JSONParser parser = new JSONParser();
                         JSONObject json = null;
@@ -96,7 +102,7 @@ public class Principal {
                     String autor = scan.nextLine();
                     System.out.println("Tipo: ");
                     String tipo = scan.nextLine();
-                    System.out.println("Descripcion: ");
+                    System.out.println("Descripción: ");
                     String descripcion = scan.nextLine();
                     System.out.println("Precio:");
                     double precio = Double.parseDouble(scan.nextLine());
@@ -134,11 +140,32 @@ public class Principal {
 
                     break;
                 case "3":
+                    System.out.println("No implementado todavía, pero tuve ganas");
                     break;
                 case "4":
                     System.out.println("");
                     System.out.println("Cerrando Sistema");
                     flagOut = true;
+                     {
+                        try {
+                            s1 = new Socket(this.ip, this.puerto);
+                            s1out = s1.getOutputStream();
+                            DataOutputStream dos = new DataOutputStream(s1out);
+                            JSONObject mensaje = new JSONObject();
+                            mensaje.put("opcion", "4");
+                            dos.writeUTF(mensaje.toJSONString());
+                            InputStream s1In = s1.getInputStream();
+                            DataInputStream dis = new DataInputStream(s1In);
+                            System.out.println(new String(dis.readUTF()));
+                            dos.close();
+                            s1out.close();
+                            dis.close();
+                            s1In.close();
+                        } catch (IOException ex) {
+                            Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+
                     break;
             }
 
