@@ -8,6 +8,9 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jdk.nashorn.api.scripting.JSObject;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -43,8 +46,9 @@ public class Principal {
                         Socket s1 = new Socket(this.ip, this.puerto);
                         s1out = s1.getOutputStream();
                         DataOutputStream dos = new DataOutputStream(s1out);
-
-                        dos.writeUTF("1");
+                        JSONObject mensaje = new JSONObject();
+                        mensaje.put("opcion", "1");
+                        dos.writeUTF(mensaje.toJSONString());
 
                         InputStream s1In = s1.getInputStream();
                         DataInputStream dis = new DataInputStream(s1In);
@@ -61,14 +65,18 @@ public class Principal {
                         }
 
                         JSONArray jArray = (JSONArray) json.get("libros");
-                        ArrayList<Libro> libros = new ArrayList<>();
-                        for (int x = 0; x < jArray.size(); x++) {
-                            JSONObject subObj = new JSONObject();
-                            subObj = (JSONObject) jArray.get(x);
-                            libros.add(new Libro((String) subObj.get("nombre"), (String) subObj.get("autor"), (String) subObj.get("tipo"), (String) subObj.get("descripcion"), (double) subObj.get("precio")));
+                        if (jArray.size() == 0) {
+                            System.out.println("No hay Libros en la lista.");
+                        } else {
+                            ArrayList<Libro> libros = new ArrayList<>();
+                            for (int x = 0; x < jArray.size(); x++) {
+                                JSONObject subObj = new JSONObject();
+                                subObj = (JSONObject) jArray.get(x);
+                                libros.add(new Libro((String) subObj.get("nombre"), (String) subObj.get("autor"), (String) subObj.get("tipo"), (String) subObj.get("descripcion"), (double) subObj.get("precio")));
+                            }
+
+                            libros.forEach((l) -> System.out.println(l));
                         }
-                        
-                        libros.forEach((l) -> System.out.println(l));
 
                         dos.close();
                         s1out.close();
@@ -81,6 +89,49 @@ public class Principal {
                     }
                     break;
                 case "2":
+                    //Guardar Libro
+                    System.out.println("Nombre: ");
+                    String nombre = scan.nextLine();
+                    System.out.println("Autor: ");
+                    String autor = scan.nextLine();
+                    System.out.println("Tipo: ");
+                    String tipo = scan.nextLine();
+                    System.out.println("Descripcion: ");
+                    String descripcion = scan.nextLine();
+                    System.out.println("Precio:");
+                    double precio = Double.parseDouble(scan.nextLine());
+
+                    JSONObject jcadena = new JSONObject();
+                    jcadena.put("nombre", nombre);
+                    jcadena.put("autor", autor);
+                    jcadena.put("tipo", tipo);
+                    jcadena.put("descripcion", descripcion);
+                    jcadena.put("precio", precio);
+
+                    JSONObject jmensaje = new JSONObject();
+                    jmensaje.put("opcion", "2");
+                    jmensaje.put("libro", jcadena);
+
+                    OutputStream s1out;
+                    Socket s1 = null;
+                    try {
+                        s1 = new Socket(this.ip, this.puerto);
+                        s1out = s1.getOutputStream();
+                        DataOutputStream dos = new DataOutputStream(s1out);
+                        dos.writeUTF(jmensaje.toJSONString());
+
+                        InputStream s1In = s1.getInputStream();
+                        DataInputStream dis = new DataInputStream(s1In);
+                        System.out.println(new String(dis.readUTF()));
+
+                        dos.close();
+                        s1out.close();
+                        dis.close();
+                        s1In.close();
+                    } catch (IOException ex) {
+                        Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
                     break;
                 case "3":
                     break;

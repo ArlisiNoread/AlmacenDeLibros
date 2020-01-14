@@ -1,1 +1,1 @@
-{"libros":[{"descripcion":"Patata","tipo":"Magia","precio":58.5,"nombre":"Harry","autor":"Potta"},{"descripcion":"Patata1","tipo":"Magia1","precio":56.5,"nombre":"Harry3","autor":"Potta2"},{"descripcion":"Patsdfata1","tipo":"Magdfia1","precio":526.5,"nombre":"Harr223y3","autor":"Potsdta2"}]}
+{"libros":[]}

@@ -12,6 +12,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jdk.nashorn.api.scripting.JSObject;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -34,7 +37,7 @@ public class Almacen {
         this.manejoDeLibros.inicializarYChecarArchivo();
         //this.manejoDeLibros.agregarLibrosDeEjemplo();
         //this.manejoDeLibros.escribirEnArchivo();
-        new Servidor(this.puerto, this.libros).start();
+        new Servidor(this.puerto, this.libros, this.manejoDeLibros).start();
     }
 
 }
@@ -54,6 +57,19 @@ class ManejoDeLibros {
                 System.out.println("Archivo creado: " + myObj.getName());
             } else {
                 System.out.println("El archivo ya existe.");
+            }
+            Scanner myReader = new Scanner(myObj);
+
+            if (!myReader.hasNextLine()) {
+                myReader.close();
+                FileWriter myWriter = new FileWriter("listaDeLibros.txt");
+                JSONObject job = new JSONObject();
+                job.put("libros", new JSONArray());
+                System.out.println(job.toJSONString());
+                myWriter.write(job.toJSONString());
+                myWriter.close();
+            } else {
+                myReader.close();
             }
 
         } catch (IOException e) {
@@ -86,6 +102,7 @@ class ManejoDeLibros {
         try {
             File myObj = new File("listaDeLibros.txt");
             Scanner myReader = new Scanner(myObj);
+
             while (myReader.hasNextLine()) {
                 String data = myReader.nextLine();
                 cadenaJson += data;
@@ -144,10 +161,12 @@ class Servidor extends Thread {
 
     int puerto;
     ArrayList<Libro> libros;
+    ManejoDeLibros manejoDeLibros;
 
-    public Servidor(int puerto, ArrayList<Libro> libros) {
+    public Servidor(int puerto, ArrayList<Libro> libros, ManejoDeLibros manejoDeLibros) {
         this.puerto = puerto;
         this.libros = libros;
+        this.manejoDeLibros = manejoDeLibros;
     }
 
     @Override
@@ -163,7 +182,7 @@ class Servidor extends Thread {
         while (true) {
             try {
                 Socket sPrivado = server.accept();
-                new ConexionPrivada(sPrivado, this.libros).start();
+                new ConexionPrivada(sPrivado, this.libros, this.manejoDeLibros).start();
 
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -176,10 +195,12 @@ class ConexionPrivada extends Thread {
 
     protected Socket socket;
     ArrayList<Libro> libros;
+    ManejoDeLibros manejoDeLibros;
 
-    public ConexionPrivada(Socket socket, ArrayList<Libro> libros) {
+    public ConexionPrivada(Socket socket, ArrayList<Libro> libros, ManejoDeLibros manejoDeLibros) {
         this.socket = socket;
         this.libros = libros;
+        this.manejoDeLibros = manejoDeLibros;
     }
 
     @Override
@@ -190,8 +211,11 @@ class ConexionPrivada extends Thread {
             slin = this.socket.getInputStream();
             DataInputStream dis = new DataInputStream(slin);
             String st = new String(dis.readUTF());
-            //System.out.println(st);
+            JSONParser par = new JSONParser();
+            JSONObject jCadena = (JSONObject) par.parse(st);
+            st = (String) jCadena.get("opcion");
             String ret = "";
+
             if (st.equals("1")) {
                 JSONObject obj = new JSONObject();
                 JSONArray list = new JSONArray();
@@ -209,6 +233,17 @@ class ConexionPrivada extends Thread {
 
                 String cadenaJson = obj.toJSONString();
                 ret += cadenaJson;
+
+            } else if (st.equals("2")) {
+                JSONObject libroAMeter = (JSONObject) jCadena.get("libro");
+
+                this.manejoDeLibros.agregarLibro(new Libro((String) libroAMeter.get("nombre"),
+                        (String) libroAMeter.get("autor"), (String) libroAMeter.get("tipo"),
+                        (String) libroAMeter.get("descripcion"),
+                        (double) libroAMeter.get("precio")));
+
+                ret = "Libro Agregado";
+
             }
 
             s1out = this.socket.getOutputStream();
@@ -223,6 +258,8 @@ class ConexionPrivada extends Thread {
 
         } catch (IOException ex) {
             ex.printStackTrace();
+        } catch (ParseException ex) {
+            Logger.getLogger(ConexionPrivada.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }
